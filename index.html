@@ -66,7 +66,7 @@ a{color:var(--a)}
 
 <section class="tab" id="t2">
   <div class="grid two">
-    <div class="card"><h3>Mix de generación nacional (GWh)</h3><p class="s">2023–2025 anual; 2026 = año móvil agosto-2025 a julio-2026 (BNEE).</p><canvas id="c_mix"></canvas></div>
+    <div class="card"><h3>Mix de generación nacional (GWh)</h3><p class="s">2023–2025 anual; 2026 = año móvil agosto-2025 a julio-2026 (balance nacional).</p><canvas id="c_mix"></canvas></div>
     <div class="card"><h3>% renovable y % térmico</h3><p class="s">Sobre producción nacional (incluye no incorporado al SNI).</p><canvas id="c_ren"></canvas></div>
     <div class="card"><h3>Importación desde Colombia (GWh)</h3><p class="s">Dependencia externa 2015–2025.</p><canvas id="c_imp"></canvas></div>
     <div class="card"><h3>Detalle por tecnología, año seleccionado</h3><p class="s">GWh y participación.</p><div id="tmix"></div></div>
@@ -231,7 +231,7 @@ function render(){
   `<b>Matriz hidro-dependiente:</b> ${fmt(MIX[2025]['Hidráulica']/tot(MIX[2025])*100,0)} % de la energía 2025 fue hidráulica, pero en 2024 bajó a ${fmt(MIX[2024]['Hidráulica']/tot(MIX[2024])*100,0)} % y la térmica pasó de 27 % a 32 %. Un año seco cambia todo.`,
   `<b>Pérdidas en aumento:</b> distribución en ${fmt(loss[10],1)} % frente a ${fmt(loss[5],1)} % en 2020; eso son ${fmt(5166.4,0)} GWh perdidos en 2025, casi el 19 % de la demanda regulada.`,
   `<b>Importación:</b> Colombia aportó 1 297 GWh en 2023 y 624 GWh en 2025; es un colchón que no siempre existe.`,
-  `<b>Proyección ${s==='lin'?'lineal':s==='cagr'?'reciente':'BEN'}:</b> demanda 2028 ≈ ${fmt(pd[2])} GWh; pico ≈ ${fmt(pp[2],2)} GW.`
+  `<b>Proyección ${s==='lin'?'lineal':s==='cagr'?'reciente':'balance 2025'}:</b> demanda 2028 ≈ ${fmt(pd[2])} GWh; pico ≈ ${fmt(pp[2],2)} GW.`
  ].map(t=>`<li>${t}</li>`).join('');
  // mix
  const tech=Object.keys(MIX[2025]),yrs=Object.keys(MIX),col=[C.a,C.e,C.y,C.b,C.d,C.c,C.g];
