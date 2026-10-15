@@ -53,6 +53,7 @@ a{color:var(--a)}
   <button data-t="t3">Demanda y sectores</button><button data-t="t4">Territorio</button>
   <button data-t="t5">Crisis hídrica hoy</button><button data-t="t6">Punto crítico y proyección</button>
   <button data-t="t7">Fuentes y método</button>
+  <button data-t="t8">Informe</button>
 </nav>
 <main>
 
@@ -170,6 +171,11 @@ a{color:var(--a)}
       <li>La proyección usa pocos puntos anuales; no captura hidrología ni El Niño.</li>
       <li>La nota de 9 080 empresas desconectadas viene de una sola fuente y no está verificada.</li></ul></div>
   </div>
+</section>
+
+<section class="tab" id="t8">
+  <div class="warn"><b>Informe dinámico.</b> Cada bloque tiene máximo 320 caracteres y se recalcula con el año, el escenario y los deslizadores de "Punto crítico". Las fechas son estimaciones con supuestos editables, no un aviso oficial.</div>
+  <div class="grid two" id="inf"></div>
 </section>
 </main>
 
@@ -294,7 +300,7 @@ function sim(){
   if(def>0)pos++; if(def<=0&&first0===null)first0=m; if(def>peakV){peakV=def;peakM=m}
  }
  mk('c_def',{type:'line',data:{labels,datasets:[{label:'Déficit MW',data,borderColor:C.d,backgroundColor:'rgba(200,71,61,.12)',fill:true,tension:.2},{label:'Sin déficit',data:data.map(()=>0),borderColor:C.g,borderDash:[4,4],pointRadius:0}]},options:{plugins:{legend:{position:'bottom'}},scales:{y:{title:{display:true,text:'MW'}}}}});
- const avg=33964.78/8760,hrs=Math.max(0,24*peakV/avg);
+ const avg=33964.78e3/8760,hrs=Math.min(24,Math.max(0,24*peakV/avg));
  const k=[['Mes más crítico',labels[peakM],`${fmt(Math.max(0,peakV))} MW`],['Meses con déficit',pos+' de 36',`${fmt(pos/36*100,0)} % del periodo`],
   ['Primer mes sin déficit',first0===null?'No en 36 meses':labels[first0],first0===null?'con estos supuestos':'a partir de ahí'],['Horas de corte/día (pico)',fmt(hrs,1)+' h','indicativo'],['MW nuevos efectivos',fmt(exec),`de ${fmt(nw)} prometidos`]];
  document.getElementById('k6').innerHTML=k.map(x=>`<div class="card kpi"><div class="l">${x[0]}</div><div class="v">${x[1]}</div><span class="d neu">${x[2]}</span></div>`).join('');
@@ -306,6 +312,48 @@ document.getElementById('year').addEventListener('change',render);document.getEl
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{document.querySelectorAll('nav button,.tab').forEach(e=>e.classList.remove('on'));b.classList.add('on');document.getElementById(b.dataset.t).classList.add('on');window.dispatchEvent(new Event('resize'))});
 document.getElementById('tsrc').innerHTML='<tr><th>Fuente</th><th>Qué se tomó</th></tr>'+SRC.map(s=>`<tr><td>${s[0]}</td><td>${s[1]}</td></tr>`).join('');
 render();crisis();
+</script>
+
+<script>
+/* ---------- Informe dinámico (pestaña añadida; no modifica el resto) ---------- */
+const NEW={cota11:2125.12,inflow:14.6,caida:27,dias:75,fuente:'reportes del 14-oct-2026'};
+function cap(s){return s.length>320?s.slice(0,319)+'…':s}
+function fdate(d){return d.toLocaleDateString('es-EC',{day:'numeric',month:'long'})}
+function buildInforme(p){
+ const i=ix(p.y),T=tot(MIX[p.y]),ren=REN.reduce((a,k)=>a+MIX[p.y][k],0)/T*100;
+ const pg=proj(gen,p.s),pd=proj(dem,p.s),pp=proj(peak,p.s);
+ const scL={lin:'lineal',cagr:'de crecimiento reciente',ben:'del balance energético'}[p.s];
+ const base=new Date(2026,9,14,15,0),dd=r=>{const d=new Date(base.getTime()+((p.cota-2115)/r)*864e5);return d};
+ const rOpt=NEW.caida/NEW.dias,rProb=(p.rate+rOpt)/2,rPes=p.rate;
+ const margen=p.cota-2115;
+ // déficit mensual (misma lógica que el simulador)
+ const exec=p.nw*p.ex/100;let pos=0,pk=-1e9,pm=0,f0=null,L=[];
+ for(let m=0;m<36;m++){const d=new Date(2026,9+m,1),mon=d.getMonth(),ramp=Math.min(1,(m+1)/p.pl);
+  let df=p.d0+p.g*m/12-exec*ramp;if(mon>=3&&mon<=8)df*=1-p.al/100;
+  if(df>0)pos++;if(df<=0&&f0===null)f0=d;if(df>pk){pk=df;pm=d}}
+ const hrs=Math.min(24,Math.max(0,24*pk/(33964.78e3/8760))),S=SEC[2025],St=tot(S);
+ const first=f0?`Primer mes sin déficit: ${f0.toLocaleDateString('es-EC',{month:'long',year:'numeric'})}.`:'Sin déficit cerrado en 36 meses.';
+ const sh=k=>S[k]/St*Math.max(0,pk);
+ return [
+ ['Cómo leerlo',`Cruza generación, demanda, embalses y déficit para estimar cuándo el sistema pierde margen. Cambia año y escenario arriba, o los deslizadores de "Punto crítico": este informe se recalcula solo.`],
+ ['Generación '+p.y,`Se generaron ${fmt(gen[i])} GWh (${fmt((gen[i]/gen[i-1]-1)*100,1)} % vs ${p.y-1}). ${fmt(ren,0)} % fue renovable y ${fmt(100-ren,0)} % térmico. Si cae la hidráulica, la térmica la reemplaza: más costo y más emisiones.`],
+ ['Demanda y pérdidas',`Pico de ${fmt(peak[i],2)} GW (${fmt((peak[i]/peak[i-1]-1)*100,1)} %). Pérdidas de distribución: ${fmt(loss[i],1)} %, ${fmt(loss[i]-loss[5],1)} pts sobre 2020. Cada punto perdido es energía que se genera y no se factura.`],
+ ['Proyección 2028',`Escenario ${scL}: demanda ≈ ${fmt(pd[2])} GWh (${fmt((pd[2]/dem[10]-1)*100,1)} % sobre 2025) y pico ≈ ${fmt(pp[2],2)} GW. Es una extrapolación de la serie, no un pronóstico oficial.`],
+ ['Embalses hoy',`Mazar está ${fmt(margen,2)} m sobre su cota crítica (2 115 m). Molino ya opera bajo su mínimo y Paute aporta 14 % frente al 38 % habitual. La entrada de agua a Mazar es de solo ${fmt(NEW.inflow,1)} m³/s.`],
+ ['Fecha probable de apagones',cap(`Escenario probable: Mazar toca su cota crítica el ${fdate(dd(rProb))} (${fmt(rProb,2)} m/día). Rango: ${fdate(dd(rPes))} si baja ${fmt(rPes,2)} m/día, a ${fdate(dd(rOpt))} si baja ${fmt(rOpt,2)}. Apagones locales ya ocurren.`)],
+ ['Déficit a 36 meses',cap(`Con ${fmt(p.d0)} MW de déficit, +${fmt(p.g)} MW/año y ${fmt(exec)} MW nuevos efectivos hay déficit ${pos} de 36 meses. Pico en ${pm.toLocaleDateString('es-EC',{month:'long',year:'numeric'})}: ${fmt(Math.max(0,pk))} MW, ≈ ${fmt(hrs,1)} h/día. ${first}`)],
+ ['Reparto por sector',cap(`Si el déficit pico (${fmt(Math.max(0,pk))} MW) se repartiera por consumo: residencial ${fmt(sh('Residencial'))} MW, industrial ${fmt(sh('Industrial'))}, comercial ${fmt(sh('Comercial'))}, otros ${fmt(sh('Otros')+sh('Alumbrado público'))}. Es un caso neutro, no una priorización.`)],
+ ['Datos nuevos',cap(`Cota de Mazar ${fmt(NEW.cota11,2)} m a las 11:00. Cayó ${NEW.caida} m desde fines de julio (≈${fmt(NEW.caida/NEW.dias,2)} m/día). Se reporta restricción a unas 9 080 empresas del 14 al 20 de octubre (una sola fuente). Sin cronograma firme de nuevos MW.`)],
+ ['Qué vigilar',`1) Cota diaria de Mazar y Amaluza. 2) MW realmente incorporados frente a los 1 650 prometidos. 3) Inicio de lluvias en la cuenca del Paute. 4) Demanda sobre 5 000 MW. Si Mazar baja de 2 120 m, la fecha se adelanta.`]
+ ];
+}
+function informe(){
+ const g=id=>+document.getElementById(id).value;
+ const p={y:+document.getElementById('year').value,s:document.getElementById('scen').value,cota:g('cota'),rate:g('rate'),d0:g('d0'),g:g('g'),nw:g('newmw'),ex:g('ex'),pl:g('pl'),al:g('al')};
+ document.getElementById('inf').innerHTML=buildInforme(p).map(r=>{const t=r[1].length>320?r[1].slice(0,319)+'…':r[1];return `<div class="card"><h3>${r[0]}</h3><p style="margin:6px 0 4px">${t}</p><span class="note">${t.length}/320 caracteres</span></div>`}).join('');
+}
+['year','scen','cota','rate','d0','g','newmw','ex','pl','al'].forEach(id=>document.getElementById(id).addEventListener(id==='year'||id==='scen'?'change':'input',informe));
+informe();
 </script>
 </body>
 </html>
